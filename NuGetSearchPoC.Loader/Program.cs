@@ -111,9 +111,12 @@ namespace NuGetSearchPoC.Loader
         using (var session = store.OpenSession())
         {
           packages = session.Query<Package>()
-            .Where(p => p.Id.StartsWith("Packages/Microsoft.AspNet"))
+            .Where(p => p.Id.StartsWith("Packages/Microsoft.AspNet") && p.IsLatestVersion)
+            .Take(1000)
             .ToList();
         }
+
+        packages.ForEach(p => Console.Out.WriteLine("Sending package '{0}'", p.ToString()));
 
         return packages;
 

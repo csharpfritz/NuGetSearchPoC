@@ -7,15 +7,12 @@ using System.Web.Mvc;
 using System.Web.Optimization;
 using System.Web.Routing;
 
-namespace NuGetSearchPoC.Web
+namespace WebApplication1
 {
-  public class MvcApplication : System.Web.HttpApplication
+  public class WebApiApplication : System.Web.HttpApplication
   {
     protected void Application_Start()
     {
-
-      NuGetSearchPoC.Core.SecretsExtensions.AddSearchSecrets();
-
       AreaRegistration.RegisterAllAreas();
       GlobalConfiguration.Configure(WebApiConfig.Register);
       FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
