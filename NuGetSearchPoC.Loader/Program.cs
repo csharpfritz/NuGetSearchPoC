@@ -51,11 +51,11 @@ namespace NuGetSearchPoC.Loader
       {
         Name = "packages",
         Suggesters = new List<Suggester> { sg },
-        Fields = new []
+        Fields = new[]
         {
           new Field("NuGetIdRaw", DataType.String) { IsKey=false, IsSearchable=true, IsSortable=true, IsRetrievable=true },
           new Field("NuGetIdCollection", DataType.Collection(DataType.String)) { IsKey=false, IsSearchable=true, IsSortable=false, IsRetrievable=true, IsFacetable=true, IsFilterable=true },
-          new Field("NuGetId", DataType.String) { IsKey=true, IsSearchable=true, IsSortable=true, IsRetrievable=true }
+          new Field("NuGetId", DataType.String) { IsKey=true, IsSearchable=false, IsSortable=false, IsRetrievable=true }
         }
       };
 
@@ -67,17 +67,24 @@ namespace NuGetSearchPoC.Loader
       // Populate
       try
       {
-        _IndexClient.Documents.Index(
-          IndexBatch.Create(
-            packagesToLoad.Select(
-              doc => IndexAction.Create(new {
-                NuGetId = Base64Encode( doc.NuGetId),
-                NuGetIdRaw = doc.NuGetId,
-                NuGetIdCollection = doc.NuGetId.Split('.')
-              })
+
+        for (var i = 0; i < packagesToLoad.Count(); i += 1000)
+        {
+
+          _IndexClient.Documents.Index(
+            IndexBatch.Create(
+              packagesToLoad.Skip(i).Take(1000).Select(
+                doc => IndexAction.Create(new
+                {
+                  NuGetId = Guid.NewGuid(),
+                  NuGetIdRaw = doc.NuGetId,
+                  NuGetIdCollection = doc.NuGetId.Split('.')
+                })
+              )
             )
-          )
-        );
+          );
+
+        }
       }
       catch (IndexBatchException e)
       {
@@ -99,31 +106,44 @@ namespace NuGetSearchPoC.Loader
 
       using (var store = new DocumentStore
       {
-        Url=RavenUrl,
-        DefaultDatabase="nuget_test"
+        Url = RavenUrl,
+        DefaultDatabase = "nuget_test"
       }.Initialize())
       {
 
-        List<Package> packages;
-
+        List<Package> packages = new List<Package>();
+        var lastCount = -1;
         //packages = store.DatabaseCommands.StartsWith("Packages/Microsoft.AspNet.", "*", 0, 100);
 
-        using (var session = store.OpenSession())
+        while (true)
         {
-          packages = session.Query<Package>()
-            .Where(p => p.Id.StartsWith("Packages/Microsoft.AspNet") && p.IsLatestVersion)
-            .Take(1000)
-            .ToList();
+
+          using (var session = store.OpenSession())
+          {
+
+            packages.AddRange(session.Query<Package>("Auto/Packages/ByAuthorsAndDownloadCountAndIdAndIsLatestVersionAndIsPrerelease")
+              .Where(p => p.IsLatestVersion == true)
+              .OrderByDescending(p => p.DownloadCount)
+              .Skip(packages.Count())
+              .Take(1000)
+              .ToList());
+
+            if (lastCount == packages.Count) break;
+
+            Console.Out.WriteLine("Collected {0} packages", packages.Count());
+
+            lastCount = packages.Count();
+
+          }
         }
 
         packages.ForEach(p => Console.Out.WriteLine("Sending package '{0}'", p.ToString()));
+        Console.WriteLine("Writing {0} packages to Azure Search", packages.Count());
 
         return packages;
 
 
       }
-
-      return null;
 
     }
 
@@ -134,5 +154,5 @@ namespace NuGetSearchPoC.Loader
     }
   }
 
-  
+
 }
