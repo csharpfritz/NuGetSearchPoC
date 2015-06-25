@@ -1,0 +1,39 @@
+﻿@{
+  ViewBag.Title = "Home Page";
+}
+
+<div class="jumbotron">
+  <h1>NuGet Search Proof of Concept</h1>
+  <p class="lead">Proof of concept in searching NuGet packages using Azure Search</p>
+</div>
+
+<div class="row">
+  <div class="col-md-3">
+
+    <label for="searchBox">Package Name:</label>
+    <input id="packageName" style="width: 500px" />
+
+  </div>
+</div>
+
+@section Scripts {
+  <script type="text/javascript">
+    $(document).ready(function () {
+
+      $("#packageName").autocomplete({
+        source: function (request, response) {
+          $.ajax({
+            url: "/api/Search/" + request.term,
+            dataType: "json",
+            success: function (data) {
+              response(data);
+            }
+          })
+        },
+        minLength: 2
+      });
+
+
+    });
+  </script>
+}
