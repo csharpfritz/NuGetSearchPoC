@@ -1,0 +1,13 @@
+﻿@model IList<Microsoft.Azure.Search.Models.SuggestResult>
+@{
+    ViewBag.Title = "Search";
+}
+
+<h2>Search</h2>
+
+<dl>
+@foreach (var item in Model)
+{
+  <dt>@item.Document["NuGetIdRaw"]</dt>
+}
+ </dl>
