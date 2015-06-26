@@ -1,5 +1,8 @@
 ﻿using Microsoft.Azure.Search;
 using Microsoft.Azure.Search.Models;
+using NuGetSearchPoC.Core;
+using Raven.Client;
+using Raven.Client.Document;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -17,6 +20,7 @@ namespace NuGetSearchPoC.Web.Controllers
     private static string _searchServiceName;
     private SearchIndexClient _IndexClient;
     private SearchServiceClient _SearchClient;
+    private static string RavenUrl = "http://localhost:8080";
 
     static SearchController()
     {
@@ -37,7 +41,13 @@ namespace NuGetSearchPoC.Web.Controllers
     // GET api/<controller>/5
     public string[] Get(string id)
     {
+      //return AzureSearch(id);
+      return RavenSearch(id);
 
+    }
+
+    private string[] AzureSearch(string id)
+    {
       var sp = new SuggestParameters()
       {
         UseFuzzyMatching = true,
@@ -47,9 +57,34 @@ namespace NuGetSearchPoC.Web.Controllers
       ///  COnnect this to type-ahead
       var suggestions = _IndexClient.Documents.Suggest(id, "sg", sp);
       return suggestions.Select(i => i.Document["NuGetIdRaw"].ToString()).ToArray();
+    }
+
+    private string[] RavenSearch(string id)
+    {
+
+      using (var store = new DocumentStore
+      {
+        Url = RavenUrl,
+        DefaultDatabase = "nuget_test"
+      }.Initialize())
+      {
+
+        using (var session = store.OpenSession())
+        {
+
+          return session.Query<Package>("dynamic/Packages")
+            .Where(p => p.Title.StartsWith(id) && p.IsLatestVersion == true)
+            .Take(10)
+            .Select(p => p.Title)
+            .ToArray();
+
+
+        }
+
+      }
 
     }
 
-
   }
+
 }
